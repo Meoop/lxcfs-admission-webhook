@@ -1,7 +1,3 @@
-/*
- * Copyright 2017 caicloud authors. All rights reserved.
- */
-
 package version
 
 // Following values should be substituted with a real value during build.
