@@ -1,0 +1,44 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  annotations:
+  labels:
+    app: lxcfs-admission-webhook
+  name: lxcfs-admission-webhook
+  namespace: kube-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: lxcfs-admission-webhook
+  template:
+    metadata:
+      labels:
+        app: lxcfs-admission-webhook
+    spec:
+      containers:
+      - args:
+        - -alsologtostderr
+        - -v=4
+        - 2>&1
+        image: test.cargo.io/release/lxcfs-admission-webhook:v3
+        imagePullPolicy: Always
+        name: lxcfs-admission-webhook
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: lxcfs-admission-webhook
+  name: lxcfs-admission-webhook
+  namespace: kube-system
+spec:
+  ports:
+  - port: 443
+    protocol: TCP
+    targetPort: 443
+  selector:
+    app: lxcfs-admission-webhook
+  type: ClusterIP
+

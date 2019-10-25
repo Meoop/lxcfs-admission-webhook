@@ -1,0 +1,30 @@
+_config:
+  _metadata:
+    name: lxcfs-admission-webhook
+    namespace: kube-system
+    template:
+      type: template.caicloud.io/application
+      version: 1.0.0
+    version: "[[ imageTagFromGitTag ]]"
+  controllers:
+  - type: Deployment
+    controller:
+      replica: 1
+    containers:
+    - name: lxcfs-admission-webhook
+      image: '[[ registry_release ]]/lxcfs-admission-webhook:[[ imageTagFromGitTag ]]'
+      imagePullPolicy: Always
+      resources:
+        limits:
+          cpu: 200m
+          memory: 256Mi
+        requests:
+          cpu: 100m
+          memory: 128Mi
+    services:
+    - name: lxcfs-admission-webhook
+      type: ClusterIP
+      ports:
+      - protocol: TCP
+        targetPort: 443
+        port: 443
