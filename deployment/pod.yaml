@@ -3,8 +3,8 @@ kind: Pod
 metadata:
   name: lxcfs-pod
   namespace: default
-  annotations:
-    "lxcfs-admission-webhook.caicloud.io/mutate": "yes"
+  labels:
+    "lxcfs-admission-webhook/mutate": "yes"
 spec:
   containers:
   - command:

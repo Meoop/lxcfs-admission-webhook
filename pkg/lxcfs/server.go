@@ -29,8 +29,8 @@ var (
 )
 
 const (
-	admissionWebhookAnnotationMutateKey = "lxcfs-admission-webhook.caicloud.io/mutate"
-	admissionWebhookAnnotationStatusKey = "lxcfs-admission-webhook.caicloud.io/status"
+	admissionWebhookLableMutateKey = "lxcfs-admission-webhook/mutate"
+	admissionWebhookLableStatusKey = "lxcfs-admission-webhook/status"
 )
 
 type patchOperation struct {
@@ -69,19 +69,23 @@ func mutationRequired(ignoredList []string, metadata *metav1.ObjectMeta) bool {
 		}
 	}
 
-	annotations := metadata.GetAnnotations()
-	if annotations == nil {
-		annotations = map[string]string{}
-	}
+	lables := metadata.GetLabels()
 
-	status := annotations[admissionWebhookAnnotationStatusKey]
+	/*
+		annotations := metadata.GetAnnotations()
+		if annotations == nil {
+			annotations = map[string]string{}
+		}
 
+		status := annotations[admissionWebhookAnnotationStatusKey]
+	*/
+	status := lables[admissionWebhookLableStatusKey]
 	// determine whether to perform mutation based on annotation for the target resource
 	var required bool
 	if strings.ToLower(status) == "mutated" {
 		required = false
 	} else {
-		switch strings.ToLower(annotations[admissionWebhookAnnotationMutateKey]) {
+		switch strings.ToLower(lables[admissionWebhookLableMutateKey]) {
 		default:
 			required = false
 		case "y", "yes", "true", "on":
@@ -98,12 +102,12 @@ func createPatch(pod *corev1.Pod) ([]byte, error) {
 	var patches []patchOperation
 
 	var op = patchOperation{
-		Path: "/metadata/annotations",
+		Path: "/metadata/lables",
 		Value: map[string]string{
-			admissionWebhookAnnotationStatusKey: "mutated",
+			admissionWebhookLableStatusKey: "mutated",
 		},
 	}
-	if pod.Annotations == nil || pod.Annotations[admissionWebhookAnnotationStatusKey] == "" {
+	if pod.Labels == nil || pod.Labels[admissionWebhookLableStatusKey] == "" {
 		op.Op = "add"
 	} else {
 		op.Op = "replace"
