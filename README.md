@@ -1,125 +1,76 @@
-<!-- START doctoc generated TOC please keep comment here to allow auto update -->
-<!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
-**Table of Contents**  *generated with [DocToc](https://github.com/thlorenz/doctoc)*
+# Kubernetes Admission Webhook for LXCFS
 
-- [Golang Template Project](#golang-template-project)
-  - [About the project](#about-the-project)
-    - [API docs](#api-docs)
-    - [Design](#design)
-    - [Status](#status)
-    - [See also](#see-also)
-  - [Getting started](#getting-started)
-    - [Layout](#layout)
-  - [Notes](#notes)
+This project shows how to build and deploy an [AdmissionWebhook](https://kubernetes.io/docs/reference/access-authn-authz/extensible-admission-controllers) for [LXCFS](https://github.com/lxc/lxcfs).
 
-<!-- END doctoc generated TOC please keep comment here to allow auto update -->
+## Prerequisites
 
-# Golang Template Project
-
-## About the project
-
-The template is used to create golang project. All golang projects must follow the conventions in the
-template. Calling for exceptions must be brought up in the engineering team.
-
-### API docs
-
-The template doesn't have API docs. For web service, please include API docs here, whether it's
-auto-generated or hand-written. For auto-generated API docs, you can also give instructions on the
-build process.
-
-### Design
-
-The template follows project convention doc.
-
-* [Repository Conventions](https://github.com/caicloud/engineering/blob/master/guidelines/repo_conventions.md)
-
-### Status
-
-The template project is in alpha status.
-
-### See also
-
-* [nirvana project template](https://github.com/caicloud/nirvana-template-project)
-* [python project template](https://github.com/caicloud/python-template-project)
-* [common project template](https://github.com/caicloud/common-template-project)
-
-## Getting started
-
-Below we describe the conventions or tools specific to golang project.
-
-### Layout
-
-```tree
-├── .github
-│   ├── ISSUE_TEMPLATE.md
-│   └── PULL_REQUEST_TEMPLATE.md
-├── .gitignore
-├── .golangci.yml
-├── CHANGELOG.md
-├── Makefile
-├── OWNERS
-├── README.md
-├── build
-│   ├── admin
-│   │   └── Dockerfile
-│   └── controller
-│       └── Dockerfile
-├── cmd
-│   ├── admin
-│   │   └── admin.go
-│   └── controller
-│       └── controller.go
-├── docs
-│   └── README.md
-├── hack
-│   ├── README.md
-│   ├── deployment.yaml
-│   └── script.sh
-├── pkg
-│   ├── apis
-│   │   └── v1
-│   │       └── README.md
-│   ├── utils
-│   │   └── net
-│   │       └── net.go
-│   └── version
-│       └── version.go
-├── release
-│   ├── template-admin.yaml
-│   └── template-controller.yaml
-├── test
-│   ├── README.md
-│   └── test_make.sh
-├── third_party
-│   └── README.md
-└── vendor
-    └── README.md
+Kubernetes 1.9.0 or above with the `admissionregistration.k8s.io/v1beta1` API enabled. Verify that by the following command:
+```
+kubectl api-versions | grep admissionregistration.k8s.io/v1beta1
+```
+The result should be:
+```
+admissionregistration.k8s.io/v1beta1
 ```
 
-A brief description of the layout:
+In addition, the `MutatingAdmissionWebhook` and `ValidatingAdmissionWebhook` admission controllers should be added and listed in the correct order in the admission-control flag of kube-apiserver.
 
-* `.github` has two template files for creating PR and issue. Please see the files for more details.
-* `.gitignore` varies per project, but all projects need to ignore `bin` directory.
-* `.golangci.yml` is the golangci-lint config file.
-* `Makefile` is used to build the project. **You need to tweak the variables based on your project**.
-* `CHANGELOG.md` contains auto-generated changelog information.
-* `OWNERS` contains owners of the project.
-* `README.md` is a detailed description of the project.
-* `bin` is to hold build outputs.
-* `cmd` contains main packages, each subdirecoty of `cmd` is a main package.
-* `build` contains scripts, yaml files, dockerfiles, etc, to build and package the project.
-* `docs` for project documentations.
-* `hack` contains scripts used to manage this repository, e.g. codegen, installation, verification, etc.
-* `pkg` places most of project business logic and locate `api` package.
-* `release` [chart](https://github.com/caicloud/charts) for production deployment.
-* `test` holds all tests (except unit tests), e.g. integration, e2e tests.
-* `third_party` for all third party libraries and tools, e.g. swagger ui, protocol buf, etc.
-* `vendor` contains all vendored code.
+## Build docker image
 
-## Notes
+```
+make container
+```
 
-* Makefile **MUST NOT** change well-defined command semantics, see Makefile for details.
-* Every project **MUST** use `dep` for vendor management and **MUST** checkin `vendor` direcotry.
-* `cmd` and `build` **MUST** have the same set of subdirectories for main targets
-  * For example, `cmd/admin,cmd/controller` and `build/admin,build/controller`.
-  * Dockerfile **MUST** be put under `build` directory even if you have only one Dockerfile.
+## Deploy 
+ 
+1. Deploy lxcfs
+
+```
+yum install automake autoconf libtool fuse fuse-libs fuse-devel
+git clone https://github.com/lxc/lxcfs.git
+cd lxcfs
+./bootstrap.sh
+make && make install
+systemctl start lxcfs
+```
+
+1. Deply lxcfs-admission-webhook
+
+```
+kubectl apply -f deployment/lxcfs-admission-webhook.yaml
+```
+
+## Test
+
+1. Deploy the test pod
+ 
+```
+kubectl apply -f deployment/pod.yaml
+```
+
+2. Inspect the resource inside container
+
+```
+$ kubectl exec -it lxcfs-pod bash
+[root@lxcfs-pod /]# free -h
+              total        used        free      shared  buff/cache   available
+Mem:           1.0G        3.3M        1.0G          0B          0B        1.0G
+Swap:            0B          0B          0B
+```
+
+## Cleanup
+
+1. Uninstall lxcfs-admission-webhook
+
+```
+kubectl delete -f deployment/lxcfs-admission-webhook.yaml
+kubectl delete mutatingwebhookconfigurations lxcfs-admission-webhook
+```
+
+2. Uninstall lxcfs from cluster nodes
+
+```
+systemctl stop lxcfs
+cd lxcfs 
+make uninstall
+```
